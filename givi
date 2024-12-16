@@ -1,0 +1,78 @@
+from web3 import Web3
+import requests
+import json
+from datetime import datetime
+
+# Connect to Ethereum node (you can use Infura or Alchemy)
+INFURA_URL = "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID"
+web3 = Web3(Web3.HTTPProvider(INFURA_URL))
+
+# Check if connected to the blockchain
+if not web3.isConnected():
+    raise Exception("Failed to connect to the Ethereum network")
+
+# Function to fetch block details
+def get_block_details(block_number):
+    block = web3.eth.getBlock(block_number)
+    return {
+        "block_number": block["number"],
+        "timestamp": datetime.utcfromtimestamp(block["timestamp"]),
+        "transactions_count": len(block["transactions"]),
+        "miner": block["miner"],
+        "gas_used": block["gasUsed"],
+    }
+
+# Function to get transaction count for a specific address
+def get_transaction_count(address):
+    return web3.eth.getTransactionCount(address)
+
+# Function to fetch events from a smart contract (example ERC20 Transfer event)
+def get_contract_events(contract_address, event_signature, from_block=0, to_block="latest"):
+    # ABI for a simple ERC20 Transfer event (you can modify this based on your contract)
+    ABI = [
+        {
+            "anonymous": False,
+            "inputs": [
+                {"indexed": True, "name": "from", "type": "address"},
+                {"indexed": True, "name": "to", "type": "address"},
+                {"indexed": False, "name": "value", "type": "uint256"}
+            ],
+            "name": "Transfer",
+            "type": "event"
+        }
+    ]
+    # Connect to contract
+    contract = web3.eth.contract(address=contract_address, abi=ABI)
+
+    # Filter events
+    events = contract.events.Transfer.createFilter(fromBlock=from_block, toBlock=to_block)
+    event_data = events.get_all_entries()
+
+    return [
+        {
+            "from": event["args"]["from"],
+            "to": event["args"]["to"],
+            "value": event["args"]["value"]
+        }
+        for event in event_data
+    ]
+
+# Example usage of functions
+def fetch_dapp_analytics():
+    # Get the latest block
+    latest_block = web3.eth.blockNumber
+    block_details = get_block_details(latest_block)
+    print(f"Latest Block Details: {block_details}")
+
+    # Fetch contract events (example with ERC20 token)
+    contract_address = "0xYourContractAddressHere"
+    events = get_contract_events(contract_address, "Transfer")
+    print(f"ERC20 Transfer Events: {events}")
+
+    # Fetch transaction count for an address
+    user_address = "0xYourUserAddressHere"
+    tx_count = get_transaction_count(user_address)
+    print(f"Transaction Count for {user_address}: {tx_count}")
+
+# Call the function to fetch analytics data
+fetch_dapp_analytics()
